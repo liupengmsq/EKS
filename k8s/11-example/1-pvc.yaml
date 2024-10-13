@@ -1,0 +1,14 @@
+---
+# 从terraform脚本所事先创建的storage class中申请PVC，大小不重要，因为EFS是自己动态调整大小的
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: myapp
+  namespace: 11-example
+spec:
+  accessModes:
+    - ReadWriteMany
+  storageClassName: efs
+  resources:
+    requests:
+      storage: 5Gi # Don't matter, it's elastic
