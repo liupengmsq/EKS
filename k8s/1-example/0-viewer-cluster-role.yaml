@@ -1,0 +1,10 @@
+---
+# 一个只读的cluster级别的role
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: viewer
+rules:
+  - apiGroups: ["*"]
+    resources: ["deployments", "configmaps", "pods", "secrets", "services"]
+    verbs: ["get", "list", "watch"]
