@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: redis
+  namespace: redis-cluster
+  labels:
+    app: redis
+spec:
+  serviceName: redis-headless
+  replicas: 6  # 构建高可用的cluster，3个master node，3个slave node的集群模式
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      # pod反亲和性，尽量将pod分布到不同的node上去
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution: # prefer表示尽量，不是强制性的
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchExpressions:
+                - key: app
+                  operator: In
+                  values:
+                  - redis
+              topologyKey: kubernetes.io/hostname
+      containers:
+      - name: redis
+        image: redis:6.0
+        ports:
+        - name: redis
+          containerPort: 6379 # Redis 服务端口，用于客户端连接
+          protocol: "TCP"
+        - name: cluster
+          containerPort: 16379 # Redis 集群端口，用于节点间通信
+          protocol: "TCP"
+        command:
+        - redis-server
+        args:
+        - "/etc/redis/redis.conf"
+        - "--protected-mode"
+        - "no"
+        env:
+        - name: POD_ORDINAL
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data # 存放redis持久化数据，与node.conf文件
+        - name: redis-config
+          mountPath: /etc/redis/redis.conf # 存放redis-server的配置文件
+          subPathExpr: redis-config-$(POD_ORDINAL).conf
+      volumes:
+      - name: redis-config
+        configMap:
+          name: redis-config
+  volumeClaimTemplates: # 每个pod分配一个单独的PVC数据卷，存放每个redis实例的持久化数据
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      resources:
+        requests:
+          storage: 5Gi
+      storageClassName: gp2
